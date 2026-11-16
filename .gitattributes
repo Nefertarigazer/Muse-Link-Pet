@@ -1,0 +1,21 @@
+# Line endings are part of the protocol here:
+# - VM-side bash/python/systemd files must stay LF (CRLF breaks bash on the Muse VM).
+# - .cmd must be CRLF + ASCII (cmd.exe mis-parses LF-only batch files).
+*.sh        text eol=lf
+*.py        text eol=lf
+*.service   text eol=lf
+*.env       text eol=lf
+*.example   text eol=lf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+*.cs        text eol=crlf
+*.xml       text eol=crlf
+*.md        text eol=lf
+*.json      text eol=lf
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.wav       binary
+*.exe       binary
+*.png       binary

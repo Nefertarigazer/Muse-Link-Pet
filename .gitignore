@@ -1,0 +1,49 @@
+# build outputs (launcher.exe is built from pc/launcher/launcher.cs at install time)
+*.exe
+!pc/third_party/**/*.exe
+build/
+__pycache__/
+*.pyc
+# Temporary localization previews and generated pseudo-language packs.
+.i18n-qa/
+qps-ploc.json
+# Local browser sessions and visual acceptance artifacts.
+.playwright-cli/
+output/
+
+# runtime state that must never be committed
+executor-token.txt
+muselink.json
+muselink.env
+muselink.site.json
+*.log
+pc/upload-work/
+pc/shots/
+pc/mailbox/.venv/
+pc/mailbox/window.json
+pc/mailbox/window.json.tmp
+pc/mailbox/user-avatar.png
+pc/mailbox/seen.json
+pc/mailbox/pet-history.jsonl
+pc/pet/pet-presence.json
+pc/pet/pet-presence.tmp
+pc/pet/pet-position.json
+pc/pet/pet-position.tmp
+pc/pet/pet-confirm.wav
+pc/ui-language.txt
+pc/ui-language.*.tmp
+pc/experience/
+# art sources are never part of the package
+pc/pet/ui/packs/*/source/
+# a mailbox created by running the package from this checkout (never deploy it)
+pc/muse-bridge/
+pc/identities/
+
+# local launcher source fingerprint, never a package asset
+pc/launcher.source.sha256
+# private source material belongs outside the checkout
+private/
+
+# Public JSON entries live beneath process-name directories ending in .exe.
+!library/entries/**/
+!library/entries/**/*.json

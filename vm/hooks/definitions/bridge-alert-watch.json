@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "bridge-alert-watch",
+  "enabled": false,
+  "script_path": "~/hooks/scripts/bridge-alert-watch.sh",
+  "prompt": "Alert wake for the MuseLink bridge. The payload is JSON: alert_id, path, text (the alert file; it is written by the bridge itself and names request ids, agent ids and codes, never request text), written_at, more (how many further unconfirmed alerts will arrive on the next ticks, one per wake), attempt and max_attempts (an alert is woken again every 10 minutes until it is confirmed, at most max_attempts times), and ack (the confirmation command).\n\nSend the user ONE short message in Chinese in the main chat:\n1. which alert it is and when it was written; quote the text verbatim;\n2. what it most likely means, in one sentence: possible impersonation of a registered agent, a hand-edited agent registry or grant, a replay conflict, a request that sat claimed without a final reply, or a final reply that could not be sent;\n3. the one next step you recommend (for example: ask the named agent whether it sent that request; run muselink-id.sh doctor; check bridge-reply-status.sh <req_id>).\nIf more > 0, add that further alerts will follow.\n\nAfter the message is sent, run the ack command exactly as given. It only records that this alert was reported; it changes no alert file. If attempt > 1 and you already reported this alert_id in this chat, do not report it again; only run the ack command.\n\nDo not edit, delete or \"repair\" the alert file, agents.json, grants.json, seal.key, state.sqlite or anything else under ~/.config/muselink/identity/, and do not re-run or answer the request named in the alert. Only report and confirm.",
+  "poll_interval_secs": 60,
+  "script_timeout_secs": 60,
+  "delivery": {
+    "surface": "main"
+  },
+  "presentation_locale": "zh-CN"
+}

@@ -1,0 +1,1 @@
+{"agent":"import","app":"minimax code.exe","created":"2026-11-04","fails":0,"goal":"领取每日签到奖励","id":"x-31479dcbbbd7","last_verified":"2026-11-04","method":["在当前窗口语义查找“每日签到”与“签到得”奖励按钮。","点击实际奖励按钮，检查面板消失；重新打开应用核对不再出现待领面板。"],"schema":1,"source":"public","status":"valid","tags":[],"ui":"启动后的每日签到面板","verify":"奖励面板消失且重启后不再提示本次待领。","works":1}

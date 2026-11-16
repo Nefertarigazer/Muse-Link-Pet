@@ -1,0 +1,53 @@
+{
+  "v": 1,
+  "entries": [
+    {
+      "path": "entries/applicationframehost.exe/x-440eb7632886.json",
+      "sha256": "0bd3c868cee8e6282e860c90badcdfa6093b98bf662630149f32c3bfe880b0b8"
+    },
+    {
+      "path": "entries/chatgpt.exe/x-2081bfc6c39a.json",
+      "sha256": "aa58115d0402db22b41eebda71521f1b2c7074942b143e5e9ea2d08eef50eb5b"
+    },
+    {
+      "path": "entries/chrome.exe/x-1b26c463b241.json",
+      "sha256": "35222a2a4d4329a043d67fdfb072362017cc7c31035d09543e610d618ca0f9a4"
+    },
+    {
+      "path": "entries/chrome.exe/x-418a1925165c.json",
+      "sha256": "ff67ce8983148d0ec675880ffa325bf8ef5c618fe5addbd624c7267ef246020b"
+    },
+    {
+      "path": "entries/chrome.exe/x-c7b84199be77.json",
+      "sha256": "98b22922e8c936468156e08a1b2b896dcd64cef8947b217b04598a4dc68a18ad"
+    },
+    {
+      "path": "entries/explorer.exe/x-6ea68383086e.json",
+      "sha256": "868ac7f5653395b4c4370a43e2648e679058d808372cc7faf3ec3885efd6c861"
+    },
+    {
+      "path": "entries/gameviewer.exe/x-dd96201164d4.json",
+      "sha256": "009b613a96c1608f2a228a6bb42462f1f7289f6fc7dfcf9a6745fa6786614d7e"
+    },
+    {
+      "path": "entries/minimax code.exe/x-31479dcbbbd7.json",
+      "sha256": "4e73db226ac91d1b20df7fa12334d2fb04e2c614639bb28850bab088e5b1cc2d"
+    },
+    {
+      "path": "entries/minimax code.exe/x-7ec5651a2609.json",
+      "sha256": "97a27b162754b374e6d15b1b5ad358b68841d9c7162c29b5c2e682cf29fcce35"
+    },
+    {
+      "path": "entries/minimax code.exe/x-fcea48814251.json",
+      "sha256": "00c670fd59b0bb29711b0c7a8b8dae4f312a2c50145f619f6b7310f1d651aec7"
+    },
+    {
+      "path": "entries/notepad.exe/x-933b2865c08d.json",
+      "sha256": "62181be07fe1b4fdfcf73cf59d7048b4b0349ae8e63a23d67d72800d469c8915"
+    },
+    {
+      "path": "entries/qoder.exe/x-b7c3220a546b.json",
+      "sha256": "c3cffefd3bcd9460bcace3f392e3cd94c8083a4d641e61fa2ad252f5718d2ba7"
+    }
+  ]
+}

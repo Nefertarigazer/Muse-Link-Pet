@@ -1,0 +1,227 @@
+{
+  "_readme": [
+    "MuseLink site configuration: the ONLY configuration file an installation fills in.",
+    "Copy it to muselink.site.json and put the same file in both places: the PC tool dir, and ~/.config/muselink/ on the Muse VM.",
+    "The installers generate every per-side file from it:",
+    "  PC: pc\\install\\deploy-pc.ps1 writes <tool dir>\\muselink.json and <tool dir>\\plugin\\policy.json",
+    "  VM: vm/install.sh writes ~/.config/muselink/muselink.env, policy.json and, when publish.enabled, publish.env",
+    "Never edit a generated file: change this file and rerun the installer. An existing file that differs is replaced only with -ReplaceConfig (PC) / --replace-config (VM); the old copy is kept.",
+    "Rules: keys starting with _ are help text and are dropped; an empty string means 'built-in default'; nothing secret goes in here (keys and tokens stay files; this file names their paths only).",
+    "For the agent filling it in: fill 'site' (required), carry over every value of an existing installation, change nothing else unless the user asks. Each _key next to a value says what it is and how to find it. The guide is docs/install.en.md section 2."
+  ],
+  "version": 1,
+
+  "site": {
+    "_help": "Values both sides need, written once. The installers put each one where each side reads it.",
+    "pc_host": "",
+    "_pc_host": "Required. The PC's tailnet IPv4 address (100.x.y.z). On the PC: tailscale ip -4",
+    "pc_user": "",
+    "_pc_user": "Required. The Windows account Muse logs in as over SSH. On the PC: $env:USERNAME",
+    "pc_tool_dir": "",
+    "_pc_tool_dir": "必填。选一个非系统盘上的目录，格式 <盘符>:\\MuseLink；用 Get-Volume 或 Get-PSDrive -PSProvider FileSystem 查目标机器的盘，系统盘是 $env:SystemDrive；已有安装就填它现在的位置。",
+    "pc_python": "",
+    "_pc_python": "在目标 PC 执行 Get-Command python.exe -All 和 python -c \"import sys; print(sys.executable)\"，确认不是商店占位程序后填实际路径；未找到就留空并先安装，不猜路径。",
+    "pc_bridge_dir": "",
+    "_pc_bridge_dir": "留空 = <pc_tool_dir>\\muse-bridge（新装用这个）。已有安装：在目标 PC 读现行 muselink.json 的 bridge.root，它不是默认位置时才填这个实际路径。"
+  },
+
+  "pc": {
+    "_help": "Becomes <tool dir>\\muselink.json. The values shown are the built-in defaults. Filled from other sections, do not set here: executor.python (site.pc_python), bridge.root (site.pc_bridge_dir), upload.* (publish).",
+    "executor": {
+      "port": 18744,
+      "require_token": true,
+      "allow_shell": false,
+      "_allow_shell": "true only while old VM scripts still need executor.sh shell",
+      "scripts": ["muse-shot.ps1", "file-facts.ps1"],
+      "agent_desktop_exe": "",
+      "_agent_desktop_exe": "在目标 PC 用 Get-Command agent-desktop -All、npm root -g 和 Get-ChildItem <tool dir>\\tools\\agent-desktop -Filter agent-desktop*.exe -Recurse 查找；验证 --help 后填实际 exe 路径。已装沿用；未找到先安装再查，留空不猜。",
+      "agent_desktop_home": "",
+      "_agent_desktop_home": "agent-desktop 状态目录，宿主和截图脚本据此设置 AGENT_DESKTOP_HOME。已装：填 agent-desktop status 返回的 state_root。新装：选非系统盘、用户目录之外的路径，格式 <盘符>:\\agent-desktop-home；只建父目录，该目录由 agent-desktop 首次运行自己创建（权限才正确）。留空依次取进程、用户、系统级 AGENT_DESKTOP_HOME，最后是 %USERPROFILE%\\.agent-desktop。只决定路径，不搬迁状态、不改权限。",
+      "events_max_bytes": 5242880,
+      "user_idle_floor_s": 2.5,
+      "user_wait_cap_s": 25
+    },
+    "popup": {
+      "activate_on_show": false,
+      "key_guard_ms": 800
+    },
+    "pet": {
+      "display_name": "Muse Pet",
+      "_display_name": "Name shown on the desktop pet",
+      "pack": "jolly",
+      "bubble_ms": 8000,
+      "poll_ms": 1000,
+      "sound": true,
+      "session_url": "",
+      "_session_url": "“会话”钮打开的 https 地址；留空为 https://muse.ai/。要指定某个会话时，在目标机器浏览器打开它，从地址栏复制。",
+      "session_browser": "",
+      "_session_browser": "个人值，可留空。没装 Muse 网页应用时用哪个浏览器打开会话：在目标机器查浏览器 exe 的绝对路径（Get-Command chrome.exe，或开始菜单快捷方式的目标）；留空用系统默认浏览器。",
+      "session_profile": "",
+      "_session_profile": "个人值，可留空。浏览器档案文件夹名：在目标机器该浏览器的档案里打开 chrome://version（Edge 为 edge://version），取“个人资料路径”最后一段，如 Default、Profile 4；也决定多个档案都装了网页应用时先用哪一个。",
+      "work_linger_s": 45
+    },
+    "mailbox": {
+      "agent_aliases": { "codex-legion": "codex" },
+      "_agent_aliases": "Old agent id -> current id, so older letters join the same thread",
+      "display_names": { "codex": "Codex", "kiro": "Kiro", "workbuddy": "WorkBuddy", "muse": "Muse" },
+      "poll_ms": 5000
+    },
+    "web_bridge": {
+      "port": 18923,
+      "allowed_origins": ["https://chatgpt.com", "https://gemini.google.com", "https://claude.ai"],
+      "_allowed_origins": "网页 AI 通道接受的来源（公共网站，不是本机地址）。所示即代码默认值；空数组也等于默认值。要增减，按浏览器地址栏的 origin（协议 + 主机）填写。"
+    },
+    "bridge": {
+      "from": "local-agent",
+      "req_prefix": "codex",
+      "agent": "",
+      "_agent": "Default agent id for muse-call when neither -As nor MUSELINK_AGENT is set",
+      "require_identity": false,
+      "_require_identity": "true = muse-call refuses to send unsigned requests"
+    },
+    "index": {
+      "path": "",
+      "_path": "在目标 PC 查现行 muselink.json 的 index.path，或在已确认的信箱目录下查 index\\threads.sqlite；未生成则留空，运行时随信箱创建。"
+    },
+    "tailscale": {
+      "exe_dir": "",
+      "_exe_dir": "在目标 PC 用 (Get-Command tailscale.exe -ErrorAction Stop).Source 查可执行文件，再用 Split-Path 取目录；未找到就留空并安装或定位，不猜默认目录。",
+      "device_name": "",
+      "_device_name": "The PC's name in the tailnet (On the PC: tailscale status, first line). The experience library replaces it with <HOST> before anything is shared"
+    },
+    "explib": {
+      "redact": {
+        "literals": [],
+        "_literals": "Extra private strings removed before anything is shared: real name, e-mail, own domains, account names. The Windows user, computer name, tool dir and mailbox dir are added automatically"
+      },
+      "public": {
+        "index_url": "",
+        "repo": "",
+        "_help": "在公共库实际托管平台查 index.json 的 URL 和仓库标识，分别填 index_url 与 repo；未建立则都留空，分享写本机 outbox。"
+      }
+    }
+  },
+
+  "plugin_policy": {
+    "_help": "Becomes <tool dir>\\plugin\\policy.json (local agent plugin). It can only tighten: consent_seconds 1..1800, muse_priority_seconds 15..3600; tools maps a tool name to 'disabled' or a tier.",
+    "consent_seconds": 1800,
+    "muse_priority_seconds": 15,
+    "tools": {}
+  },
+
+  "vm": {
+    "_help": "Becomes ~/.config/muselink/muselink.env. Empty = the built-in default named in the _key. PC_HOST, PC_USER, PC_TOOL_DIR, PC_PYTHON and PC_BRIDGE_DIR come from 'site'. A value may start with ~/ for the agent user's home.",
+    "SSH_KEY": "",
+    "_SSH_KEY": "在目标 VM 用 ls -la ~/.ssh 查实际密钥文件，并以 ssh-keygen -lf <公钥文件> 核对；未配置就留空并先建密钥，不猜文件。",
+    "SSH_CONFIG": "",
+    "_SSH_CONFIG": "在目标 VM 用 test -f ~/.ssh/config 和 ssh -G <PC目标> 查现行 SSH 配置；有自定义文件时填实际路径，未找到留空。",
+    "KNOWN_HOSTS": "",
+    "_KNOWN_HOSTS": "在目标 VM 查 ssh -G <PC目标> 的 userknownhostsfile，并核对已确认的主机指纹；文件未建立则留空并先完成首次连接确认。",
+    "HOST_KEY_CHECK": "",
+    "_HOST_KEY_CHECK": "Empty = yes. accept-new only for the very first connection",
+    "USE_TUNNEL": "",
+    "_USE_TUNNEL": "Empty = 1: reach the tailnet through the runtime CONNECT proxy (ts-connect.py). 0 = direct",
+    "TUNNEL_PORT": "",
+    "_TUNNEL_PORT": "Empty = 3130",
+    "MUX": "",
+    "_MUX": "Empty = 1: reuse one SSH master connection",
+    "MUX_PERSIST": "",
+    "_MUX_PERSIST": "Empty = 1800 seconds",
+    "ML_STATE_DIR": "",
+    "_ML_STATE_DIR": "在目标 VM 查现有钩子包装脚本的 ML_STATE_DIR 或 hooks/state；未找到留空，安装时确认状态目录。",
+    "ML_BRIDGE_HOME": "",
+    "_ML_BRIDGE_HOME": "在目标 VM 用 systemctl cat muse-bridge 和现行 muselink.env 查 ML_BRIDGE_HOME；未安装则留空，按安装手册创建并确认。",
+    "WAIT_POLL_SEC": "",
+    "_WAIT_POLL_SEC": "One wait call; keep under the tunnel proxy limits. Empty = 25",
+    "PROXY_FALLBACK": "",
+    "_PROXY_FALLBACK": "在目标 VM 查运行环境提供的代理地址与服务 Environment；确认能在 systemd/cron 中使用才填，不在聊天输出凭据；未提供留空。",
+    "MUSELINK_IDENTITY": "1",
+    "_MUSELINK_IDENTITY": "1 = releases are authorized by the identity protocol (grants, cards). Empty or 0 = the older RELEASE_APPROVAL gate (publish section). Exported to the bridge service"
+  },
+
+  "policy": {
+    "_help": "Becomes ~/.config/muselink/policy.json (identity policy, see docs/protocol.en.md section 4). Every key is required; unknown keys are an error (fail closed).",
+    "version": 1,
+    "legacy_unsigned": "transition",
+    "_legacy_unsigned": "transition = v1 requests are handled as today (tier 'legacy' below); reject = every unsigned non-enroll request is refused. Switch to reject once every agent has enrolled.",
+    "freshness": { "max_age_s": 604800, "max_future_s": 600 },
+    "seen_retention_s": 691200,
+    "max_envelope_bytes": 1048576,
+    "delay_window_s": 120,
+    "_delay_window_s": "Author's decision 2026-11-12: at most 2 minutes. The loader rejects values above 120 or below 10.",
+    "grant_caps": { "max_days": 30, "max_uses": 20 },
+    "enroll_limits": { "per_hour": 3, "card_timeout_s": 1800 },
+    "ask_card_timeout_s": 1800,
+    "classes": {
+      "conversation": ["ping", "message", "question"],
+      "task": ["task"],
+      "privileged": ["publish-release"],
+      "red_line": ["payment", "delete-data", "credential-change", "third-party-message", "network-change"]
+    },
+    "aliases": {},
+    "_aliases": "Extra type name -> a type listed in classes. Retired built-in names are mapped in code and need no entry.",
+    "tiers": {
+      "whitelist": { "conversation": "allow", "task": "allow", "privileged": "grant_or_ask", "red_line": "ask" },
+      "ask-first": { "conversation": "allow", "task": "ask", "privileged": "grant_or_ask", "red_line": "ask" },
+      "legacy": { "conversation": "allow", "task": "allow", "privileged": "ask", "red_line": "ask" }
+    },
+    "unknown_type": "ask",
+    "grant_templates": {
+      "_comment": "Optional last task: the 'allow and do not ask again' button on ask cards builds a grant from the request with these rules.",
+      "publish-release": {
+        "conditions": [
+          { "field": "package_path", "op": "path_under", "from": "parent_dir" },
+          { "field": "version", "op": "prefix", "from": "major_minor" }
+        ],
+        "days": 7,
+        "uses": 5,
+        "mode": "allow"
+      }
+    }
+  },
+
+  "publish": {
+    "_help": "Only for publishing your own software through the bridge to your own update server (request type publish-release). enabled false = no publish.env is written; an existing one is left alone.",
+    "enabled": false,
+    "RELEASE_SSH": "",
+    "_RELEASE_SSH": "启用发版时必填。在目标 VM 查更新服务器的 SSH 配置和 ssh -G <更新目标>，核对实际 user 与 hostname 后填 user@host；未配置留空并停止发版配置。",
+    "RELEASE_SSH_KEY": "",
+    "_RELEASE_SSH_KEY": "在目标 VM 查更新目标的 ssh -G 输出 identityfile，验证文件存在后填实际密钥路径；未找到留空并提示。",
+    "RELEASE_KNOWN_HOSTS": "",
+    "_RELEASE_KNOWN_HOSTS": "在目标 VM 查更新目标的 ssh -G 输出 userknownhostsfile，核对主机指纹后填实际文件；未找到留空并提示。",
+    "RELEASE_WEB_DIR": "",
+    "_RELEASE_WEB_DIR": "启用时必填。在目标更新服务器查看站点服务配置中的实际发布目录，并用 test -d 验证；未找到留空，不猜路径。",
+    "RELEASE_TEST_DIR": "",
+    "_RELEASE_TEST_DIR": "在目标更新服务器查现行测试发布目录并验证 test -d；新装先创建并确认再填，未找到留空并提示。",
+    "RELEASE_STAGE": "",
+    "_RELEASE_STAGE": "在目标更新服务器用 pwd、ls -ld 查实际上传暂存目录并验证权限；同时用于 PC upload.remote_dir，未找到留空并提示。",
+    "RELEASE_BASE_URL": "",
+    "_RELEASE_BASE_URL": "启用时必填。在目标更新服务器查站点服务配置和部署记录，实际 HTTP 验证后填公开下载 URL；未找到留空并提示。",
+    "RELEASE_LATEST_URL": "",
+    "_RELEASE_LATEST_URL": "在目标更新服务器查更新清单路由，HTTP 验证实际 latest.json 地址后填；未发布留空并提示。",
+    "RELEASE_ZIP_NAME": "",
+    "_RELEASE_ZIP_NAME": "Required when enabled. Published zip name; {version} is replaced, e.g. MyApp-V{version}-win-x64.zip",
+    "RELEASE_SETUP_NAME": "",
+    "_RELEASE_SETUP_NAME": "Published installer name, e.g. MyApp-V{version}-Setup.exe. Empty = releases carry no installer",
+    "RELEASE_APPROVAL": "popup",
+    "_RELEASE_APPROVAL": "Used only when vm.MUSELINK_IDENTITY is not 1. popup = one-click card; delay:2 = upload, wait 2 minutes, then publish; none = publish at once (only with signed releases)",
+    "RELEASE_APPROVAL_TIMEOUT": 1800,
+    "RELEASE_APPROVE_LABEL": "",
+    "_RELEASE_APPROVE_LABEL": "Card button. Empty = use the current UI language pack",
+    "RELEASE_DECLINE_LABEL": "",
+    "_RELEASE_DECLINE_LABEL": "Card button. Empty = use the current UI language pack",
+    "RELEASE_ALLOWED_DIRS": "",
+    "_RELEASE_ALLOWED_DIRS": "在目标 PC 用 Resolve-Path 查用户批准的出包目录；多个目录用 ; 分隔，未指定留空。",
+    "UPLOAD_DEST_PC": "",
+    "_UPLOAD_DEST_PC": "在目标 PC 用 ssh -G <上传目标> 查实际 user 与 hostname，验证连通后填 user@host；未配置留空并提示。",
+    "UPLOAD_KEY_PC": "",
+    "_UPLOAD_KEY_PC": "在目标 PC 查上传目标 ssh -G 的 identityfile，用 Test-Path 验证；填实际路径（可相对工具目录），未找到留空并提示。",
+    "RELEASE_UPLOAD_WAIT": 900
+  },
+
+  "tailnet": {
+    "_help": "Tags for the Tailscale policy fragment printed by: python3 vm/site-config.py acl. Paste it into the Tailscale admin console (Access controls) by hand and tag the two machines there.",
+    "muse_tag": "tag:muse",
+    "pc_tag": "tag:muselink-pc"
+  }
+}

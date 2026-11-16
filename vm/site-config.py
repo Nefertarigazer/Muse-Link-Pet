@@ -1,0 +1,357 @@
+#!/usr/bin/env python3
+"""site-config.py - generate the VM's configuration from the one site file.
+
+    python3 site-config.py check [--site FILE] [--replace-config]
+    python3 site-config.py write [--site FILE] [--replace-config]
+    python3 site-config.py acl   [--site FILE]
+
+Site file: --site FILE, else ~/.config/muselink/muselink.site.json (template
+config/muselink.site.example.json; the same file is used on the PC). Files
+generated in ~/.config/muselink/ (~ = $MUSELINK_HOME or $HOME):
+  muselink.env   site + vm sections     read by lib/muselink-common.sh
+  policy.json    policy section         read by muselink_id (validated here)
+  publish.env    publish section        only when publish.enabled is true
+
+Per file: missing -> written; same effective values -> left untouched (so
+the policy hash stays the same); different -> the differences are listed
+and the file is replaced only with --replace-config (old copy kept as
+<name>.bak-<UTC stamp>). "check" never writes anything. "acl" prints the
+Tailscale policy fragment to paste by hand.
+Exit 0 ok, 1 something must be fixed first, 2 usage.
+Python 3.8+ standard library only. No secret is read or written: the site
+file holds paths, never keys.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+HOME = os.environ.get("MUSELINK_HOME") or os.path.expanduser("~")
+os.environ["HOME"] = HOME   # ~ in publish.env expands like the pipeline does
+CFG = os.path.join(HOME, ".config", "muselink")
+LIB = os.path.join(HERE, "lib", "muselink-common.sh")
+
+# site section -> muselink.env (filled once, never repeated in "vm")
+SITE_VARS = (("pc_host", "PC_HOST"), ("pc_user", "PC_USER"), ("pc_tool_dir", "PC_TOOL_DIR"),
+             ("pc_python", "PC_PYTHON"), ("pc_bridge_dir", "PC_BRIDGE_DIR"))
+REQUIRED_SITE = ("pc_host", "pc_user", "pc_tool_dir")
+# effective values compared after loading through lib/muselink-common.sh
+ENV_NAMES = ("PC_HOST", "PC_USER", "PC_TOOL_DIR", "PC_PYTHON", "PC_BRIDGE_DIR", "SSH_KEY",
+             "SSH_CONFIG", "KNOWN_HOSTS", "HOST_KEY_CHECK", "USE_TUNNEL", "TUNNEL_PORT", "MUX",
+             "MUX_SOCK", "MUX_PERSIST", "ML_STATE_DIR", "ML_BRIDGE_HOME", "PROXY_FALLBACK",
+             "WAIT_POLL_SEC", "MUSELINK_IDENTITY")
+REQUIRED_PUBLISH = ("RELEASE_SSH", "RELEASE_WEB_DIR", "RELEASE_BASE_URL", "RELEASE_ZIP_NAME")
+NAME_RX = re.compile(r"^[A-Z][A-Z0-9_]*$")
+ASSIGN_RX = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=", re.M)
+
+
+class SiteError(Exception):
+    pass
+
+
+def strip(obj):
+    """Drop help keys (leading _) at every level."""
+    if isinstance(obj, dict):
+        return {k: strip(v) for k, v in obj.items() if not str(k).startswith("_")}
+    if isinstance(obj, list):
+        return [strip(v) for v in obj]
+    return obj
+
+
+def scalar(where, value):
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if not isinstance(value, str):
+        raise SiteError(where + ": must be a string or number")
+    if any(c in value for c in "\r\n\0"):
+        raise SiteError(where + ": must be one line")
+    return value
+
+
+def load_site(path):
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            site = strip(json.load(f))
+    except (OSError, ValueError) as e:
+        raise SiteError("cannot read %s: %s" % (path, e))
+    if not isinstance(site, dict) or site.get("version") != 1:
+        raise SiteError("not a version 1 site file: " + path)
+    s = site.get("site")
+    if not isinstance(s, dict):
+        raise SiteError("site section missing")
+    for k in REQUIRED_SITE:
+        if not isinstance(s.get(k), str) or not s[k].strip():
+            raise SiteError("site.%s is required" % k)
+    if not re.match(r"^[A-Za-z]:\\", s["pc_tool_dir"]):
+        raise SiteError("site.pc_tool_dir must be an absolute Windows path (C:\\...)")
+    for sec in ("vm", "publish", "tailnet"):
+        if not isinstance(site.get(sec) or {}, dict):
+            raise SiteError(sec + " section must be an object")
+    for k, v in (site.get("vm") or {}).items():
+        if not NAME_RX.match(k):
+            raise SiteError("vm.%s: not a variable name" % k)
+        if k in dict((b, a) for a, b in SITE_VARS):
+            raise SiteError("vm.%s: set it once in the site section" % k)
+        scalar("vm." + k, v)
+    return site
+
+
+def site_lines(site):
+    s, out = site["site"], []
+    for key, name in SITE_VARS:
+        v = scalar("site." + key, s.get(key, ""))
+        if v:
+            out.append((name, v))
+    for name, v in (site.get("vm") or {}).items():
+        v = scalar("vm." + name, v)
+        if v:
+            out.append((name, v))
+    return out
+
+
+def shq(v):
+    q = lambda t: "'" + t.replace("'", "'\\''") + "'"
+    return '"$HOME"' + q(v[1:]) if v.startswith("~/") else q(v)
+
+
+def render_env(site, src):
+    lines = ["# muselink.env - GENERATED by vm/site-config.py from " + src,
+             "# Do not edit: change the site file and rerun vm/install.sh."]
+    lines += ["export %s=%s" % (n, shq(v)) for n, v in site_lines(site)]
+    return "\n".join(lines) + "\n"
+
+
+def render_policy(site):
+    pol = site.get("policy")
+    if not isinstance(pol, dict):
+        raise SiteError("policy section missing")
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    from muselink_id.policy import Policy   # same validation as every reader
+    try:
+        Policy.from_dict(pol)
+    except Exception as e:
+        raise SiteError("policy section is invalid: %s" % e)
+    return json.dumps(pol, ensure_ascii=False, indent=2) + "\n"
+
+
+def publish_values(site):
+    pub = site.get("publish") or {}
+    vals = {}
+    for k, v in pub.items():
+        if k == "enabled":
+            continue
+        if not NAME_RX.match(k):
+            raise SiteError("publish.%s: not a variable name" % k)
+        v = scalar("publish." + k, v)
+        if v:
+            vals[k] = v
+    return vals
+
+
+def render_publish(site, src):
+    vals = publish_values(site)
+    for k in REQUIRED_PUBLISH:
+        if not vals.get(k):
+            raise SiteError("publish.%s is required when publish.enabled is true" % k)
+    lines = ["# publish.env - GENERATED by vm/site-config.py from " + src,
+             "# Do not edit: change the site file and rerun vm/install.sh."]
+    lines += ["%s=%s" % (k, v) for k, v in vals.items()]
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------- compare
+def env_effective(path, extra_names):
+    """Values as lib/muselink-common.sh sees them (defaults applied)."""
+    names = " ".join(sorted(set(ENV_NAMES) | set(extra_names)))
+    script = ('. "$ML_LIB" >/dev/null 2>&1 || exit 2\n'
+              'for v in ' + names + '; do\n'
+              '  if d="$(declare -p "$v" 2>/dev/null)"; then f="${d#declare -}"; f="${f%% *}"\n'
+              '    case "$f" in *x*) x=x ;; *) x=- ;; esac; printf "%s\\0%s\\0%s\\0" "$v" "$x" "${!v}"\n'
+              '  else printf "%s\\0u\\0\\0" "$v"; fi\n'
+              'done\n')
+    env = {"HOME": HOME, "PATH": os.environ.get("PATH", "/usr/bin:/bin"), "MUSELINK_HOME": HOME,
+           "MUSELINK_CONFIG": path, "ML_LIB": LIB}
+    p = subprocess.run(["bash", "-c", script], env=env, capture_output=True)
+    if p.returncode != 0:
+        return None
+    parts = p.stdout.decode("utf-8", "replace").split("\0")
+    return {parts[i]: (parts[i + 1], parts[i + 2]) for i in range(0, len(parts) - 2, 3)}
+
+
+def env_diff(old_path, new_text):
+    try:
+        with open(old_path, encoding="utf-8", errors="replace") as f:
+            old_text = f.read()
+    except OSError:
+        return ["cannot read " + old_path]
+    extra = set(ASSIGN_RX.findall(old_text)) | set(ASSIGN_RX.findall(new_text))
+    fd, tmp = tempfile.mkstemp(suffix=".env")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(new_text)
+    try:
+        old, new = env_effective(old_path, extra), env_effective(tmp, extra)
+    finally:
+        os.unlink(tmp)
+    if new is None:
+        return ["the generated muselink.env does not load (site values?)"]
+    if old is None:
+        return ["the current file does not load"]
+    out = []
+    for n in sorted(set(old) | set(new)):
+        o, w = old.get(n, ("u", "")), new.get(n, ("u", ""))
+        if o[1] != w[1] or o[0] == "u" and w[0] != "u" or w[0] == "u" and o[0] != "u":
+            out.append("%s: %r -> %r" % (n, o[1] if o[0] != "u" else None, w[1] if w[0] != "u" else None))
+        elif o[0] == "x" and w[0] != "x":
+            out.append("%s: no longer exported" % n)
+    return out
+
+
+def policy_diff(old_path, new_text):
+    try:
+        with open(old_path, encoding="utf-8-sig") as f:
+            old = strip(json.load(f))
+    except (OSError, ValueError) as e:
+        return ["current file unreadable: %s" % e]
+    new = json.loads(new_text)
+    return ["%s: %s -> %s" % (k, json.dumps(old.get(k), ensure_ascii=False), json.dumps(new.get(k), ensure_ascii=False))
+            for k in sorted(set(old) | set(new)) if old.get(k) != new.get(k)]
+
+
+def publish_parse(text):
+    """Same rules as pipelines/publish-release.py load_publish_config()."""
+    cfg = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        v = v.strip()
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+            v = v[1:-1]
+        cfg[k.strip()] = os.path.expanduser(v)
+    return cfg
+
+
+def publish_effective(cfg):
+    """Fill the pipeline's defaults so explicit-default and omitted compare equal."""
+    e = dict(cfg)
+    for k, v in (("RELEASE_SSH_KEY", HOME + "/.ssh/id_ed25519"), ("RELEASE_KNOWN_HOSTS", HOME + "/.ssh/known_hosts"),
+                 ("RELEASE_STAGE", "stage"), ("RELEASE_SETUP_NAME", ""), ("RELEASE_APPROVAL", "popup"),
+                 ("RELEASE_APPROVAL_TIMEOUT", "1800"), ("RELEASE_APPROVE_LABEL", "\u53d1\u5e03"),
+                 ("RELEASE_DECLINE_LABEL", "\u4e0d\u53d1\u5e03"), ("RELEASE_ALLOWED_DIRS", ""),
+                 ("UPLOAD_KEY_PC", "keys\\upload-key"), ("RELEASE_UPLOAD_WAIT", "900")):
+        e.setdefault(k, v)
+    e.setdefault("RELEASE_TEST_DIR", e.get("RELEASE_WEB_DIR", "").rstrip("/") + "-test")
+    e.setdefault("RELEASE_LATEST_URL", e.get("RELEASE_BASE_URL", "").rstrip("/") + "/latest.json")
+    e.setdefault("UPLOAD_DEST_PC", e.get("RELEASE_SSH", ""))
+    return e
+
+
+def publish_diff(old_path, new_text):
+    try:
+        with open(old_path, encoding="utf-8") as f:
+            old = publish_effective(publish_parse(f.read()))
+    except OSError as e:
+        return ["current file unreadable: %s" % e]
+    new = publish_effective(publish_parse(new_text))
+    return ["%s: %r -> %r" % (k, old.get(k), new.get(k)) for k in sorted(set(old) | set(new)) if old.get(k) != new.get(k)]
+
+
+# ------------------------------------------------------------------ main
+def write_file(path, text):
+    mode = 0o600
+    if os.path.exists(path):
+        mode = os.stat(path).st_mode & 0o777
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        with open(path, "rb") as f, open(path + ".bak-" + stamp, "wb") as b:
+            b.write(f.read())
+        print("     old copy kept: %s.bak-%s" % (path, stamp))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".site-")
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+
+def acl(site):
+    t = site.get("tailnet") or {}
+    muse, pc = t.get("muse_tag") or "tag:muse", t.get("pc_tag") or "tag:muselink-pc"
+    for tag in (muse, pc):
+        if not re.match(r"^tag:[A-Za-z0-9-]+$", tag):
+            raise SiteError("tailnet: bad tag " + tag)
+    print("// Tailscale policy fragment (paste into Access controls by hand): the Muse\n"
+          "// device may reach the PC over SSH and nothing else. Tag the Muse device\n"
+          "// %s and the PC %s in the machines list.\n" % (muse, pc) + json.dumps({
+              "tagOwners": {muse: ["autogroup:admin"], pc: ["autogroup:admin"]},
+              "grants": [{"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
+                         {"src": [muse], "dst": [pc], "ip": ["tcp:22"]}]}, indent=2))
+
+
+def main(argv):
+    args = list(argv)
+    if not args or args[0] not in ("check", "write", "acl"):
+        print(__doc__.split("\n\n")[0].strip())
+        return 2
+    cmd = args.pop(0)
+    replace = "--replace-config" in args
+    site_path = os.path.join(CFG, "muselink.site.json")
+    if "--site" in args:
+        i = args.index("--site")
+        if i + 1 >= len(args):
+            return 2
+        site_path = os.path.abspath(args[i + 1])
+    try:
+        site = load_site(site_path)
+        if cmd == "acl":
+            acl(site)
+            return 0
+        targets = [("muselink.env", render_env(site, site_path), env_diff),
+                   ("policy.json", render_policy(site), policy_diff)]
+        if (site.get("publish") or {}).get("enabled") is True:
+            targets.append(("publish.env", render_publish(site, site_path), publish_diff))
+        else:
+            publish_values(site)
+    except SiteError as e:
+        print("FAIL site file: %s" % e)
+        return 1
+    print("ok   site file %s" % site_path)
+    if not any(t[0] == "publish.env" for t in targets):
+        p = os.path.join(CFG, "publish.env")
+        print("warn publish.enabled is false: %s" % (p + " is left as it is" if os.path.exists(p)
+                                                   else "no publish.env, releases cannot run"))
+    fail, todo = 0, []
+    for name, text, differ in targets:
+        path = os.path.join(CFG, name)
+        if not os.path.exists(path):
+            print("new  %s (generated from the site file)" % path)
+            todo.append((path, text))
+            continue
+        diff = differ(path, text)
+        if not diff:
+            print("ok   %s matches the site file (left untouched)" % path)
+            continue
+        print(("repl " if replace else "FAIL ") + "%s differs from the site file:" % path)
+        for line in diff:
+            print("       " + line)
+        if replace:
+            todo.append((path, text))
+        else:
+            print("     fix the site file, or rerun with --replace-config to replace it")
+            fail = 1
+    if cmd == "write" and not fail:
+        for path, text in todo:
+            write_file(path, text)
+            print("     wrote %s" % path)
+    return fail
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

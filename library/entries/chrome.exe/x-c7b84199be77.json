@@ -1,0 +1,1 @@
+{"agent":"import","app":"chrome.exe","created":"2026-11-02","fails":0,"goal":"读取 Gemini 长回复并核对生成完成","id":"x-c7b84199be77","last_verified":"2026-11-02","method":["从当前对话 DOM 读取正文，用本轮用户问题定位后续模型回复。","检查生成指示物、正文长度和节点；长时间平线时用当前截图交叉核验。"],"schema":1,"source":"public","status":"valid","tags":[],"ui":"Gemini 网页对话","verify":"正文属于本轮且页面已完成生成；用户气泡而非编辑器中可见提问原文。","works":1}

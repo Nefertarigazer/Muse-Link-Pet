@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# ~/hooks/scripts/<name>.sh - thin wrapper the platform hook definition points
+# at. It runs a detector from the deployed tree, so the definition's
+# script_path is the only thing that changes when a hook is switched (and the
+# only thing to change back on rollback). HATCH_HOOK_RUNTIME and
+# HATCH_HOOK_DRY_RUN come from the platform and pass through unchanged.
+# Copy once per detector and set DETECTOR:
+#   bridge-postman.sh | popup-fallback.sh | bridge-alert-watch.sh
+DETECTOR=bridge-postman.sh
+export MUSELINK_VM_DIR="${MUSELINK_VM_DIR:-$HOME/workspace/tools/muselink}"
+exec bash "$MUSELINK_VM_DIR/hooks/$DETECTOR"

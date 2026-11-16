@@ -1,0 +1,1 @@
+{"agent":"import","app":"chrome.exe","created":"2026-11-01","fails":0,"goal":"读取 ChatGPT 浮动聊天面板的回复全文","id":"x-1b26c463b241","last_verified":"2026-11-01","method":["在当前标签读取 document.body.innerText，以刚发送问题的唯一开头短语最后一次出现为锚点截取后文。","同时检查页面生成状态与回答完成标记，过滤页尾工具栏文字。"],"schema":1,"source":"public","status":"valid","tags":[],"ui":"ChatGPT 网页浮动面板","verify":"完成标记出现，截取内容对应本次问题且含回复末尾。","works":1}

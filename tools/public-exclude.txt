@@ -1,0 +1,1 @@
+vm/compat/ # 换包验收完成且调用环境全部改用 pc.sh / pc-master.sh 后删除旧命令转发目录及本行。

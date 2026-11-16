@@ -1,0 +1,20 @@
+{
+  "_comment": "Mailbox UI <-> backend contract: the keys every response must carry. Single source for tests/mailbox-ui/model.test.mjs (frontend, on demo.json) and the backend's own contract test (on real api.py output). See docs/architecture.en.md section 7.",
+  "methods": ["i18n", "config", "avatar", "set_avatar", "threads", "thread", "search", "status", "refresh", "mark_seen", "delete_thread", "send_message"],
+  "window_methods": ["minimize", "hide"],
+  "i18n": ["tag", "dir", "font", "messages"],
+  "config": ["agent_aliases", "display_names", "poll_ms"],
+  "status": ["built_at", "messages", "threads", "fts", "syncing", "last_error"],
+  "thread_summary": ["id", "title", "participants", "status", "last_activity", "last_ts", "unread", "snippet", "message_count"],
+  "message": ["message_id", "req_id", "seq", "thread_id", "role", "agent", "type", "status", "final", "text", "payload",
+              "created_at", "replied_at", "sort_ts", "trust", "state", "final_read", "dir", "parse_error",
+              "release_card", "attachments"],
+  "search_result_extra": ["thread_title"],
+  "release_card": ["version", "package_path", "package_size", "sha256", "setup_path", "setup_size", "setup_sha256", "test", "status"],
+  "enums": {
+    "role": ["agent", "muse", "user"],
+    "thread_status": ["waiting_user", "active", "done"],
+    "state": ["delivered", "claimed", "acked", "replied", "needs_user", "rejected"],
+    "trust": [null, "read", "unread_unverified", "rejected_by_client"]
+  }
+}

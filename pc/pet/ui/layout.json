@@ -1,0 +1,26 @@
+{
+  "ui_scale": 1,
+  "sprite_scale": 0.7,
+  "window": {
+    "width": 340,
+    "height": 440
+  },
+  "spill": {
+    "right": 400,
+    "bottom": 240,
+    "left": 400
+  },
+  "char_rect": {
+    "x": 618.060576923077,
+    "y": 332.0625,
+    "w": 83.87884615384615,
+    "h": 85.6826923076923
+  },
+  "mouth": {
+    "frame": {
+      "x": 96,
+      "y": 123
+    },
+    "target_above": 7
+  }
+}

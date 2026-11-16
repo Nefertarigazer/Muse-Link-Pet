@@ -1,0 +1,32 @@
+{
+  "_comment": "Pet UI <-> backend contract: methods and the keys every response carries. Single source for tests/pet-ui/model.test.mjs (on the demo backend) and the backend's own contract test (on real api.py output). See docs/architecture.en.md section 8. Every method returns {ok:true,data} or {ok:false,error,code}.",
+  "methods": ["i18n", "languages", "set_language", "config", "state", "channels", "done", "say", "open_mailbox", "open_session", "hide", "exit", "set_avatar", "region", "activate", "drag", "screen"],
+  "js_hooks": ["MusePet.shown", "MusePet.poke", "MusePet.talk", "MusePet.pointer", "MusePet.avail"],
+  "i18n": ["tag", "dir", "font", "messages"],
+  "language": ["tag", "name"],
+  "set_language": ["tag", "dir", "font", "messages"],
+  "config": ["display_name", "pack", "bubble_ms", "poll_ms", "sound"],
+  "state": ["state", "brief", "brief_id", "brief_at", "activity", "ask", "last_answer", "since", "unread"],
+  "ask": ["req_id", "mode", "summary"],
+  "last_answer": ["req_id", "by", "at"],
+  "channels": ["checked_at", "items"],
+  "channel_item": ["id", "label", "level", "detail"],
+  "done_result": ["delivered"],
+  "say_result": ["via", "req_id"],
+  "set_avatar_result": ["updated"],
+  "region_rect": ["x", "y", "w", "h"],
+  "enums": {
+    "state": ["idle", "working", "waiting_user"],
+    "ask_mode": ["info", "choice", "input"],
+    "answer_by": ["popup", "pet", "other"],
+    "level": ["ok", "warn", "down", "unknown"],
+    "say_via": ["wait", "bridge"],
+    "channel_id": ["tunnel", "host", "bus", "bridge"]
+  },
+  "window": { "width": 1140, "height": 680, "anchor": "measured CHAR_RECT clamped to work area; transparent spill may extend off any screen edge" },
+  "confirm_chime": {
+    "notes": [{ "hz": 1318.5, "at": 0 }, { "hz": 1975.5, "at": 0.085 }],
+    "attack": 0.004, "decay": 0.42, "gain": 0.22, "overtone": 0.18,
+    "_comment": "Sine per note plus a 2x overtone at the given level; linear attack, exponential decay to -80 dB. The backend renders this to pet-confirm.wav (44.1 kHz mono 16-bit) for popup.ps1."
+  }
+}

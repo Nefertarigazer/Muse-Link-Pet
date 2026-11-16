@@ -1,0 +1,1 @@
+{"agent":"import","app":"chrome.exe","created":"2026-11-01","fails":0,"goal":"在现有 ChatGPT 标签内开始新对话","id":"x-418a1925165c","last_verified":"2026-11-01","method":["在已有标签内按文本或 aria-label 找到“新聊天”并点击。","检查地址回到对话首页且出现空的 ProseMirror 编辑器。"],"schema":1,"source":"public","status":"valid","tags":[],"ui":"ChatGPT 网页","verify":"新对话编辑器为空，原标签仍可用。","works":1}

@@ -1,0 +1,42 @@
+{
+  "_comment": "Fixed vectors for the identity protocol (docs/protocol.en.md section 3). Computed 2026-11-12 with Python stdlib hmac/hashlib only. sig = base64(HMAC-SHA256(key, UTF-8(domain + signed))). Never regenerate these with the code under test.",
+  "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "cases": [
+    {
+      "name": "request",
+      "domain": "muselink-req-v3\n",
+      "signed": "{\n \"req_id\": \"kiro_20261112_101500_ab12cd\",\n \"agent_id\": \"kiro\",\n \"ts\": 1794564900,\n \"created_at\": \"2026-11-12T10:15:00.000+01:00\",\n \"type\": \"message\",\n \"text\": \"你好 Muse — \\\"quotes\\\", back\\\\slash, <tag> & tab\\tnewline\\nemoji 😀\",\n \"payload\": {},\n \"grant_id\": null,\n \"reply_protocol\": 3\n}",
+      "sig_b64": "vUk3pWwkZKVPGX3RBcOxVRvkjLOnJmcuMCwRzFJEgPM="
+    },
+    {
+      "name": "reply",
+      "domain": "muselink-reply-v3\n",
+      "signed": "{\"req_id\":\"kiro_20261112_101500_ab12cd\",\"seq\":2,\"agent_id\":\"kiro\",\"final\":true,\"status\":\"ok\",\"replied_at\":\"2026-11-12T09:16:03+00:00\",\"from\":\"muse\",\"reply_protocol\":3,\"text\":\"已完成。\"}",
+      "sig_b64": "hDr/3RnMRf5x1L8b8hQRbHbTY9ncRNCTC/uyArqTth4="
+    },
+    {
+      "name": "request-domain-on-reply-text",
+      "domain": "muselink-req-v3\n",
+      "signed": "{\"req_id\":\"kiro_20261112_101500_ab12cd\",\"seq\":2,\"agent_id\":\"kiro\",\"final\":true,\"status\":\"ok\",\"replied_at\":\"2026-11-12T09:16:03+00:00\",\"from\":\"muse\",\"reply_protocol\":3,\"text\":\"已完成。\"}",
+      "sig_b64": "hM9awiyVq8tpKCwKxqfnCsJ49SgqCr9eq15SlHWFCaI=",
+      "_note": "same text, other domain: must differ from the reply case (domain separation)"
+    },
+    {
+      "name": "empty",
+      "domain": "muselink-req-v3\n",
+      "signed": "",
+      "sig_b64": "6P78MiXF7hfU54kPpc4H7R/tv3YflsMHynG81esuSEQ="
+    }
+  ],
+  "envelope_example": {
+    "v": 3,
+    "req_id": "kiro_20261112_101500_ab12cd",
+    "agent_id": "kiro",
+    "signed": "{\n \"req_id\": \"kiro_20261112_101500_ab12cd\",\n \"agent_id\": \"kiro\",\n \"ts\": 1794564900,\n \"created_at\": \"2026-11-12T10:15:00.000+01:00\",\n \"type\": \"message\",\n \"text\": \"你好 Muse — \\\"quotes\\\", back\\\\slash, <tag> & tab\\tnewline\\nemoji 😀\",\n \"payload\": {},\n \"grant_id\": null,\n \"reply_protocol\": 3\n}",
+    "auth": {
+      "alg": "HMAC-SHA256",
+      "key_id": "kiro#1",
+      "sig": "vUk3pWwkZKVPGX3RBcOxVRvkjLOnJmcuMCwRzFJEgPM="
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "id": "jolly",
+  "displayName": "Jolly",
+  "description": "Muse's built-in Jolly avatar as a Codex Pets atlas: 8 x 9 cells of 192 x 208, rows in the v1 order (idle, running_right, running_left, waving, jumping, failed, waiting, running, review). No enter/exit rows: showing fades in; hiding plays the waving row once, then fades.",
+  "spritesheetPath": "spritesheet.png",
+  "frame": { "columns": 8, "rows": 9, "width": 192, "height": 208 }
+}

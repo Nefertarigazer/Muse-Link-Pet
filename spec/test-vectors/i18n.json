@@ -1,0 +1,712 @@
+{
+  "resolve": [
+    {
+      "system": "zh",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hans",
+      "docs": "zh"
+    },
+    {
+      "system": "zh",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-CN",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hans",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-CN",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-SG",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hans",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-SG",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-MY",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hans",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-MY",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-TW",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hant",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-TW",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-HK",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hant",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-HK",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-MO",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hant",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-MO",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-Hant-TW",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hant",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-Hant-TW",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-Hans-HK",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "zh-Hans",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-Hans-HK",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "en-US",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "en-US",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "en-GB",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "en-GB",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "ja-JP",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "ja",
+      "docs": "en"
+    },
+    {
+      "system": "ja-JP",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "pt-BR",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "pt-BR",
+      "docs": "en"
+    },
+    {
+      "system": "pt-BR",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "pt-PT",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "pt",
+      "docs": "en"
+    },
+    {
+      "system": "pt-PT",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "fr-CA",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "fr",
+      "docs": "en"
+    },
+    {
+      "system": "fr-CA",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "ku-Arab",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "ku-Arab",
+      "docs": "en"
+    },
+    {
+      "system": "ku-Arab",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "乱码",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "乱码",
+      "available": [
+        "en"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "zh-TW",
+      "available": [
+        "en",
+        "zh-Hans"
+      ],
+      "ui": "zh-Hans",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-CN",
+      "available": [
+        "en",
+        "zh-Hant"
+      ],
+      "ui": "en",
+      "docs": "zh"
+    },
+    {
+      "system": "pt-PT",
+      "available": [
+        "en",
+        "pt-BR"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "pt-BR",
+      "available": [
+        "en",
+        "pt"
+      ],
+      "ui": "pt",
+      "docs": "en"
+    },
+    {
+      "system": "en-GB",
+      "available": [
+        "en",
+        "en-GB"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "fr-CA",
+      "available": [
+        "en",
+        "fr-CA",
+        "fr"
+      ],
+      "ui": "fr-CA",
+      "docs": "en"
+    },
+    {
+      "system": "fr-CA-x-testing",
+      "available": [
+        "en",
+        "fr-CA"
+      ],
+      "ui": "fr-CA",
+      "docs": "en"
+    },
+    {
+      "system": "de-DE-u-co-phonebk",
+      "available": [
+        "en",
+        "de-DE"
+      ],
+      "ui": "de-DE",
+      "docs": "en"
+    },
+    {
+      "system": "ZH-hAnT-cn",
+      "available": [
+        "en",
+        "zh-Hant"
+      ],
+      "ui": "zh-Hant",
+      "docs": "zh"
+    },
+    {
+      "system": "zh-CN-x-hant",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant"
+      ],
+      "ui": "zh-Hans",
+      "docs": "zh"
+    },
+    {
+      "system": "zh--CN",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "en_US",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": " en-US",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "en-u",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant",
+        "ja",
+        "pt",
+        "pt-BR",
+        "fr",
+        "ku-Arab"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "zh-TW\n",
+      "available": [
+        "en",
+        "zh-Hans",
+        "zh-Hant"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "en-US",
+      "available": [
+        "zh-Hans",
+        "zh-Hant"
+      ],
+      "ui": "en",
+      "docs": "en"
+    },
+    {
+      "system": "en-GB",
+      "available": [
+        "zh-Hans",
+        "zh-Hant"
+      ],
+      "ui": "en",
+      "docs": "en"
+    }
+  ],
+  "format": {
+    "packs": {
+      "en": {
+        "popup.greeting": "Hello {name} in {app}",
+        "popup.braces": "{{{name}}} {{plain}}",
+        "popup.only_en": "Fallback {name}",
+        "mailbox.unread_one": "{n} unread letter",
+        "mailbox.unread_other": "{n} unread letters"
+      },
+      "zh-Hans": {
+        "popup.greeting": "{name} 在 {app}",
+        "popup.braces": "{{{name}}} {{plain}}",
+        "mailbox.unread_one": "{n} 封未读",
+        "mailbox.unread_other": "{n} 封未读"
+      },
+      "zh-Hant": {
+        "popup.greeting": "{name} 在 {app}",
+        "popup.braces": "{{{name}}} {{plain}}",
+        "mailbox.unread_one": "{n} 封未讀",
+        "mailbox.unread_other": "{n} 封未讀"
+      }
+    },
+    "cases": [
+      {
+        "tag": "en",
+        "key": "popup.greeting",
+        "args": {
+          "name": "Muse",
+          "app": "Mail"
+        },
+        "expected": "Hello Muse in Mail"
+      },
+      {
+        "tag": "zh-Hans",
+        "key": "popup.greeting",
+        "args": {
+          "name": "Muse",
+          "app": "Mail"
+        },
+        "expected": "Muse 在 Mail"
+      },
+      {
+        "tag": "en",
+        "key": "popup.braces",
+        "args": {
+          "name": "{Muse}"
+        },
+        "expected": "{{Muse}} {plain}"
+      },
+      {
+        "tag": "zh-Hant",
+        "key": "popup.only_en",
+        "args": {
+          "name": "Muse"
+        },
+        "expected": "Fallback Muse"
+      },
+      {
+        "tag": "en",
+        "key": "popup.missing",
+        "args": {},
+        "expected": "popup.missing"
+      },
+      {
+        "tag": "en",
+        "key": "mailbox.unread",
+        "n": 1,
+        "args": {},
+        "expected": "1 unread letter"
+      },
+      {
+        "tag": "en",
+        "key": "mailbox.unread",
+        "n": 2,
+        "args": {},
+        "expected": "2 unread letters"
+      },
+      {
+        "tag": "zh-Hans",
+        "key": "mailbox.unread",
+        "n": 1,
+        "args": {},
+        "expected": "1 封未读"
+      },
+      {
+        "tag": "zh-Hans",
+        "key": "mailbox.unread",
+        "n": 2,
+        "args": {},
+        "expected": "2 封未读"
+      },
+      {
+        "tag": "zh-Hant",
+        "key": "mailbox.unread",
+        "n": 1,
+        "args": {},
+        "expected": "1 封未讀"
+      },
+      {
+        "tag": "zh-Hant",
+        "key": "mailbox.unread",
+        "n": 2,
+        "args": {},
+        "expected": "2 封未讀"
+      },
+      {
+        "tag": "en",
+        "key": "mailbox.unread",
+        "n": 0,
+        "args": {},
+        "expected": "0 unread letters"
+      }
+    ]
+  }
+}
