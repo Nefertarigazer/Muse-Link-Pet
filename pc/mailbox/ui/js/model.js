@@ -11,7 +11,7 @@ import { I18N, t as tr } from "../../../i18n/i18n.js";
 
 export const DEFAULT_ALIASES = Object.freeze({ "codex-legion": "codex" });
 export const DEFAULT_NAMES = Object.freeze({
-  codex: "Codex", workbuddy: "WorkBuddy", kiro: "Kiro", muse: "Muse", pet: "Pet", get user() { return tr("mailbox.you"); },
+  codex: "Codex", claude: "Claude", gemini: "Gemini", workbuddy: "WorkBuddy", kiro: "Kiro", opencode: "OpenCode", muse: "Muse", pet: "Pet", get user() { return tr("mailbox.you"); },
 });
 const TOPICS = new Set(["release", "chat"]);
 const AGENT_RX = /^[a-z][a-z0-9-]{1,31}$/;

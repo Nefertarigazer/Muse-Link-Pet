@@ -76,13 +76,22 @@ function hintMap() {
 }
 
 // ---- small views ---------------------------------------------------------
+const AGENT_ASSET = Object.freeze({
+  muse: "assets/muse-pet.png",
+  pet: "assets/muse-pet.png",
+  codex: "assets/codex.png",
+  gemini: "assets/gemini.png",
+  workbuddy: "assets/workbuddy.svg",
+  opencode: "assets/opencode.png",
+});
+
 function avatar(agent, size = "", orphan = false) {
   const kind = M.agentKind(agent);
   const iconAgents = new Set(["muse", "codex", "claude", "gemini", "kiro", "workbuddy", "opencode", "user", "pet"]);
   const cls = orphan ? "av-orphan" : iconAgents.has(kind) ? `av-${kind}` : "av-other";
-  if (!orphan && (kind === "muse" || kind === "pet")) {
+  if (!orphan && Object.prototype.hasOwnProperty.call(AGENT_ASSET, kind)) {
     return h("span", { class: `avatar ${size} ${cls}`, "aria-hidden": "true" },
-      h("img", { src: "assets/muse-pet.png", alt: "" }));
+      h("img", { src: AGENT_ASSET[kind], alt: "" }));
   }
   if (!orphan && kind === "user" && state.userAvatar) {
     return h("span", { class: `avatar ${size} ${cls}`, "aria-hidden": "true" },
