@@ -13,6 +13,10 @@ import webbrowser
 from .watch import done_info, read, read_json
 
 FLAGS = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+DETACH_FLAGS = (
+    getattr(subprocess, 'DETACHED_PROCESS', 0)
+    | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+)
 POWERSHELL = str(Path(os.environ.get('SystemRoot', 'C:/Windows')) /
                  'System32/WindowsPowerShell/v1.0/powershell.exe')
 
@@ -181,7 +185,7 @@ class Actions:
             raise ActionError('open_failed', t('pet.error.open_failed'))
     def _launch(self, argv):
         try:
-            self._popen(argv, cwd=str(Path(argv[0]).parent), creationflags=FLAGS)
+            self._popen(argv, cwd=str(Path(argv[0]).parent), creationflags=DETACH_FLAGS)
             return True
         except OSError:
             return False

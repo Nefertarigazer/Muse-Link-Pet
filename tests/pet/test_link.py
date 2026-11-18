@@ -14,7 +14,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'pc'))
-from pet.actions import Actions, ActionError, FLAGS, POWERSHELL
+from pet.actions import Actions, ActionError, DETACH_FLAGS, FLAGS, POWERSHELL
 from pet.watch import done_info
 from pet.make_confirm_wav import render
 STAMP_END_MS = 880   # MusePopup.AnsweredStamp.EndMs: last phase of the stamp
@@ -97,6 +97,7 @@ class LinkTests(unittest.TestCase):
         # 1. the installed Muse app; the configured profile's copy first
         opener, popen = session({}, apps)
         self.assertEqual(popen.call_args.args[0], [chrome, '--profile-directory=Default', '--app-id=' + 'a' * 32])
+        self.assertEqual(popen.call_args.kwargs.get('creationflags'), DETACH_FLAGS)
         opener.assert_not_called()
         _o, popen = session(dict(session_profile='Profile 4'), apps)
         self.assertEqual(popen.call_args.args[0][1:], ['--profile-directory=Profile 4', '--app-id=' + 'b' * 32])

@@ -264,6 +264,40 @@ class ApiTests(unittest.TestCase):
         shell._track_pointer()
         self.assertEqual(calls, ['window.MusePet && MusePet.pointer(false)'])
 
+    def test_eval_js_timeout_does_not_stall_or_leak_workers(self):
+        from pet.app import Shell
+        import threading
+        shell = Shell.__new__(Shell)
+        shell.stop_event = threading.Event()
+        shell.window = mock.Mock()
+        release = threading.Event()
+        started = threading.Event()
+        calls = []
+        def stuck(js):
+            calls.append(js)
+            started.set()
+            release.wait(5)
+        shell.window.evaluate_js.side_effect = stuck
+        try:
+            self.assertFalse(shell._eval_js('MusePet.avail(1)', timeout=.05))
+            self.assertTrue(started.is_set())
+            # While the wedged WebView2 call is still blocked, a second call returns at once.
+            self.assertFalse(shell._eval_js('MusePet.avail(2)', timeout=.05))
+            self.assertEqual(len(calls), 1)
+        finally:
+            release.set()
+
+    def test_push_avail_retries_after_failed_or_timed_out_dispatch(self):
+        from pet.app import Shell
+        shell = Shell.__new__(Shell)
+        shell.screen = mock.Mock(return_value={'x': 0, 'y': 0, 'w': 100, 'h': 100})
+        shell._eval_js = mock.Mock(return_value=False)
+        shell.push_avail()
+        self.assertFalse(hasattr(shell, '_last_avail'))
+        shell._eval_js = mock.Mock(return_value=True)
+        shell.push_avail()
+        self.assertEqual(shell._last_avail, {'x': 0, 'y': 0, 'w': 100, 'h': 100})
+
 
 if __name__ == '__main__':
     unittest.main()

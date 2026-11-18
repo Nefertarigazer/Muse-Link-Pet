@@ -82,6 +82,69 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(source.address, again.address)
             self.assertEqual(source._key_name, again._key_name)
 
+    def test_diag_log_rotates_and_sanitizes_tracebacks(self):
+        from pet.app import _DiagLog
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'pet-runtime.log'
+            path.write_text('x' * 200, encoding='utf-8')
+            diag = _DiagLog(path, max_bytes=100)
+            diag.open()
+            try:
+                diag.install_hooks()
+                diag.write('hello')
+                try:
+                    raise ValueError('PRIVATE_SECRET_VALUE')
+                except ValueError:
+                    diag._write_tb(sys.exc_info()[2])
+            finally:
+                diag.close()
+            self.assertTrue(path.with_suffix('.log.1').exists())
+            text = path.read_text(encoding='utf-8')
+            self.assertIn('hello', text)
+            self.assertNotIn('PRIVATE_SECRET_VALUE', text)
+
+    @unittest.skipUnless(sys.platform == 'win32', 'Windows launcher wait')
+    def test_pet_ps1_does_not_hang_on_detached_grandchild(self):
+        import os, subprocess, time
+        root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory(prefix='muselink-pet-ps1-') as temp:
+            tdir = Path(temp)
+            (tdir / 'pet').mkdir()
+            pyw = Path(sys.executable).with_name('pythonw.exe')
+            if not pyw.is_file():
+                pyw = Path(sys.executable)
+            src_ps1 = (root / 'pc/pet/pet.ps1').read_text(encoding='ascii')
+            patched = src_ps1.replace(
+                "$python = Join-Path (Split-Path -Parent $PSScriptRoot) 'mailbox\\.venv\\Scripts\\pythonw.exe'",
+                "$python = '%s'" % str(pyw).replace("'", "''"),
+            )
+            (tdir / 'pet/pet.ps1').write_text(patched, encoding='ascii')
+            (tdir / 'pet/app.py').write_text(
+                "import subprocess, sys, time\n"
+                "from pathlib import Path\n"
+                "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(15)'],\n"
+                "                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))\n"
+                "Path(__file__).with_name('grand.pid').write_text(str(p.pid), encoding='ascii')\n"
+                "time.sleep(0.2)\n",
+                encoding='ascii',
+            )
+            env = dict(os.environ, TEMP=str(tdir), TMP=str(tdir))
+            t0 = time.monotonic()
+            try:
+                res = subprocess.run(
+                    ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(tdir / 'pet/pet.ps1'), '--flag'],
+                    capture_output=True, text=True, timeout=10, env=env,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+                elapsed = time.monotonic() - t0
+                self.assertEqual(res.returncode, 0, res.stderr)
+                self.assertLess(elapsed, 6.0)
+                self.assertEqual(list(tdir.glob('pet-args-*.json')), [])
+            finally:
+                gpid = tdir / 'pet/grand.pid'
+                if gpid.exists():
+                    subprocess.run(['taskkill', '/F', '/PID', gpid.read_text().strip()], capture_output=True)
+
 
 if __name__ == '__main__':
     unittest.main()

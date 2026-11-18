@@ -3,6 +3,7 @@ from i18n import t
 import json
 import os
 from pathlib import Path
+import sqlite3
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -244,13 +245,21 @@ class Syncer:
             except FileNotFoundError:
                 continue
 
+    def _needs_rebuild(self):
+        try:
+            return query.stats(self._index)["schema_version"] != SCHEMA_VERSION
+        except (FileNotFoundError, store.SchemaError, KeyError, ValueError, TypeError):
+            return True
+        except sqlite3.DatabaseError as exc:
+            msg = str(exc).lower()
+            if "locked" in msg or "busy" in msg:
+                raise store.WriterBusy("busy")
+            return True
+
     def _cycle(self):
         try:
             self._check_source()
-            try:
-                rebuild = query.stats(self._index)["schema_version"] != SCHEMA_VERSION
-            except Exception:
-                rebuild = True
+            rebuild = self._needs_rebuild()
             (indexer.rebuild if rebuild else indexer.sync)(self._root, self._index)
             self._cache_stats()
             with self._cv:

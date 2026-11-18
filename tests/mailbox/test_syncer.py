@@ -99,6 +99,17 @@ class SyncerTests(unittest.TestCase):
             self.syncer.refresh()
             self.assertEqual(rebuild.call_count, 1)
 
+    def test_locked_stats_skips_without_rebuild_or_error(self):
+        import sqlite3
+        self.syncer.refresh()
+        with mock.patch.object(query, "stats", side_effect=sqlite3.OperationalError("database is locked")), \
+                mock.patch.object(indexer, "rebuild") as rebuild, \
+                mock.patch.object(indexer, "sync") as sync:
+            status = self.syncer.refresh()
+            rebuild.assert_not_called()
+            sync.assert_not_called()
+        self.assertIsNone(status["last_error"])
+
     def test_writer_busy_skip_without_error(self):
         with store.Lock(self.index):
             status = self.syncer.refresh()

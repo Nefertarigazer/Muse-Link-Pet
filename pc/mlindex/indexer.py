@@ -456,6 +456,21 @@ def _counts(conn):
     }
 
 
+def _cleanup_stale_builds(index_path):
+    """Remove leftover .build-* temp databases under the single-writer lock."""
+    directory = os.path.dirname(index_path)
+    prefix = os.path.basename(index_path) + ".build-"
+    if not directory or not os.path.isdir(directory):
+        return
+    try:
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                if entry.name.startswith(prefix):
+                    _remove(entry.path)
+    except OSError:
+        pass
+
+
 def sync(bridge_root, index_path):
     """Incremental update.  Returns counts (files, messages, threads, ...)."""
     index_path = os.path.abspath(index_path)
@@ -463,6 +478,7 @@ def sync(bridge_root, index_path):
     disk = set(_norm(path) for path, _, _, _ in entries)
     writer = store.open_writer(index_path)
     try:
+        _cleanup_stale_builds(index_path)
         conn = writer.conn
         rows = {}
         for row in conn.execute("SELECT path, size, mtime_ns, record_json FROM files"):
@@ -549,6 +565,7 @@ def rebuild(bridge_root, index_path):
     if directory:
         os.makedirs(directory, exist_ok=True)
     with store.Lock(index_path):
+        _cleanup_stale_builds(index_path)
         records = list(sources.scan(bridge_root))
         temp = "%s.build-%d-%s" % (index_path, os.getpid(), uuid.uuid4().hex[:8])
         conn = None

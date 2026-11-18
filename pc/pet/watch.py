@@ -64,11 +64,13 @@ def job_activity(job, detail):
 
 
 class Watch:
-    def __init__(self, tool, work_linger_s=45, clock=time.time, *, events_dir=None):
+    def __init__(self, tool, work_linger_s=45, clock=time.time, *, events_dir=None, on_error=None):
         self.tool = Path(tool)
         self.events_path = Path(events_dir if events_dir is not None else tool) / 'executor-events.jsonl'
         self.linger = work_linger_s
         self.clock = clock
+        self._on_error = on_error
+        self._err_at = float('-inf')
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
@@ -216,6 +218,16 @@ class Watch:
                     self.poll()
                 except OSError:
                     pass  # transient replacement/sharing failure; retry next poll
+                except Exception as exc:
+                    cb = getattr(self, '_on_error', None)
+                    if cb is not None:
+                        now = time.monotonic()
+                        if now - getattr(self, '_err_at', float('-inf')) >= 60:
+                            self._err_at = now
+                            try:
+                                cb('watch: %s' % type(exc).__name__)
+                            except Exception:
+                                pass
         self._thread = threading.Thread(target=run, name='pet-watch', daemon=True)
         self._thread.start()
 

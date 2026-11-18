@@ -108,6 +108,21 @@ class Index(unittest.TestCase):
         self.assertEqual([n for n in os.listdir(os.path.dirname(self.index))
                           if ".build-" in n], [])
 
+    def test_sync_and_rebuild_clean_up_orphan_build_files(self):
+        self.mb.write_request("r1", "inbox", v=2, text="hello", thread_id="t1")
+        indexer.rebuild(self.tmp.name, self.index)
+        idx_dir = os.path.dirname(self.index)
+        for suffix in ("", "-wal", "-shm"):
+            with open(os.path.join(idx_dir, "threads.sqlite.build-99999-deadbeef" + suffix), "wb") as fh:
+                fh.write(b"orphan")
+        indexer.sync(self.tmp.name, self.index)
+        self.assertEqual([n for n in os.listdir(idx_dir) if ".build-" in n], [])
+        for suffix in ("", "-wal", "-shm"):
+            with open(os.path.join(idx_dir, "threads.sqlite.build-88888-cafebabe" + suffix), "wb") as fh:
+                fh.write(b"orphan")
+        indexer.rebuild(self.tmp.name, self.index)
+        self.assertEqual([n for n in os.listdir(idx_dir) if ".build-" in n], [])
+
     def test_single_writer_and_live_readers(self):
         """second sync -> busy (exit 3); a reader queries during sync. Pass: no lock error."""
         self.mb.write_request("r1", "inbox", v=2, text="hello", thread_id="t1")

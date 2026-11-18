@@ -220,6 +220,26 @@ class WatchTests(unittest.TestCase):
         self.assertIsNone(self.watch.snapshot()['last_answer'])
         self.assertEqual(self.watch.snapshot()['state'], 'idle')
 
+    def test_watch_thread_survives_unexpected_poll_error(self):
+        import threading
+        errors = []
+        watch = Watch(self.tool, clock=lambda: self.now, on_error=errors.append)
+        self.addCleanup(watch.stop)
+        calls = [0]
+        recovered = threading.Event()
+        orig_poll = watch.poll
+        def flaky():
+            calls[0] += 1
+            if calls[0] == 1:
+                raise ValueError('synthetic poll bug')
+            orig_poll()
+            if calls[0] >= 2:
+                recovered.set()
+        watch.poll = flaky
+        watch.start()
+        self.assertTrue(recovered.wait(3))
+        self.assertEqual(errors, ['watch: ValueError'])
+
 
 if __name__ == '__main__':
     unittest.main()
