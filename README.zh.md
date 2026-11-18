@@ -65,7 +65,7 @@
 ### 4. 无障碍优先执行器、身份 v3 与经验库
 
 - **本机执行器（`pc/executor-host.py`）**：仅监听回环地址，带随机令牌、请求截止时间、用户空闲等待（`user_idle_floor_s`）与全局可重入输入锁；优先走语义树（`agent-desktop`）和原生 UIA，最后才使用坐标截图（`vm/sem.sh`、`vm/uia.sh`、`vm/seq.sh`、`vm/shot.sh`）。
-- **身份 v3 与授权（`vm/muselink_id/`、`pc/muselink-identity.ps1`）**：Ed25519 独立签名域区分请求与回信，带重放保护、代理登记卡、分级策略（`whitelist` / `ask-first` / `legacy`）与封印执行凭据。
+- **身份 v3 与授权（`vm/muselink_id/`、`pc/muselink-identity.ps1`）**：请求与回信用 HMAC-SHA256 验证，分别使用独立的认证域，带重放保护、代理登记卡、分级策略（`whitelist` / `ask-first` / `legacy`）与封印执行凭据。
 - **共享 MCP 插件（`pc/plugin/mcp_server.py`）**：通过 stdio MCP 为本机代理提供语义操作、UIA、批次执行、截图与经验工具，带逐应用同意闸与 `Muse` 输入优先让行。
 - **经验库（`pc/explib/`、`library/`）**：从已验证执行轨迹自动起草方法，按本机/公共库及中文 bigram 相关性检索，并在累计满 5 条已确认条目时弹出一次脱敏批量分享确认（「分享」或「拒绝（不再询问）」）。
 

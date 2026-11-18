@@ -6,8 +6,8 @@ Called by vm/hooks/bridge-postman.sh through `muselink-id route <file>
 prints; every security decision is made here.
 
 Requirements
-  1. Order (docs/protocol.en.md section 3): read_envelope_file -> legacy / enroll /
-     v3 branch -> verify -> replay check -> decide() with request-level
+  1. For a new request (docs/protocol.en.md section 3): read_envelope_file ->
+     legacy / enroll / v3 branch -> verify -> replay check -> decide() with request-level
      facts (facts = {} here; enforcement points re-decide with measured
      facts) -> write files -> audit. Any unexpected exception -> route
      "rejected" with code "internal" and an alert (fail closed).
@@ -25,8 +25,10 @@ Requirements
      digest, now, route) in one transaction. Same req_id + same digest ->
      "duplicate"; same req_id + different digest -> reject "conflict" with
      an alert. Legacy and enroll requests are recorded too (digest = SHA-256
-     of the file bytes). prune_seen() with policy.seen_retention_s runs at
-     most once per hour.
+     of the file bytes). Queue entries are staged on disk before the commit,
+     then published by rename. If routing is interrupted, the PC still has
+     the request and the next route call can finish the committed handoff.
+     Completed rows are pruned at most once per hour.
   4. Legacy (no "v"): legacy_unsigned == "reject" -> reject
      "legacy_disabled"; the v1 "from" equals a registered agent_id ->
      reject "downgrade" + alert; otherwise route inbox with auth
@@ -54,9 +56,10 @@ import os
 import re
 import time
 from collections import namedtuple
+from contextlib import closing
 
 from . import (
-    AuthError, IMPERSONATION_CODES, PolicyError, current_type,
+    AuthError, IMPERSONATION_CODES, current_type,
 )
 from .policy import decide
 from . import envelope
@@ -72,6 +75,7 @@ RouteResult = namedtuple(
 # check, step 2, happens in read_envelope_file).
 POST_AUTH_CODES = frozenset({"bad_inner", "stale", "future", "id_mismatch"})
 _SAFE_TYPE = re.compile(r"[^a-z0-9_-]")
+_STAGED = "staged:"
 
 
 def _legacy_type(value):
@@ -115,66 +119,97 @@ def _registered(registry, agent_id):
         return False
 
 
-def _prune(store, policy, now):
+def _prune(conn, store, policy, now):
     marker = store.path(".prune")
     try:
         if os.path.exists(marker) and now - os.path.getmtime(marker) < 3600:
             return
     except OSError:
         pass
-    conn = store.db()
     try:
-        conn.execute("BEGIN IMMEDIATE")
-        conn.execute("DELETE FROM seen WHERE first_seen < ?", (now - int(policy.seen_retention_s),))
-        conn.execute("COMMIT")
-    except Exception:
-        try:
-            conn.execute("ROLLBACK")
-        except Exception:
-            pass
-    finally:
-        conn.close()
-    try:
+        conn.execute("DELETE FROM seen WHERE first_seen < ? AND route NOT LIKE ?",
+                     (now - int(policy.seen_retention_s), _STAGED + "%"))
         with open(marker, "a"):
             pass
         os.utime(marker, (now, now))
-    except OSError:
-        pass
-
-
-def _replay(store, policy, req_id, agent_id, digest, now, route):
-    conn = store.db()
-    try:
-        conn.execute("BEGIN IMMEDIATE")
-        row = conn.execute("SELECT digest FROM seen WHERE req_id=?", (req_id,)).fetchone()
-        if row is not None:
-            conn.execute("COMMIT")
-            return "duplicate" if row[0] == digest else "conflict"
-        conn.execute("INSERT INTO seen(req_id,agent_id,digest,first_seen,route) VALUES(?,?,?,?,?)",
-                     (req_id, agent_id, digest, now, route))
-        conn.execute("COMMIT")
-    except Exception:
-        try:
-            conn.execute("ROLLBACK")
-        except Exception:
-            pass
-        raise
-    finally:
-        conn.close()
-    _prune(store, policy, now)
-    return "new"
-
-
-def _forget(store, req_id, now):
-    try:
-        conn = store.db()
-        try:
-            conn.execute("DELETE FROM seen WHERE req_id=? AND first_seen=?", (req_id, now))
-            conn.execute("DELETE FROM enroll_log WHERE req_id=? AND at=?", (req_id, now))
-        finally:
-            conn.close()
     except Exception:
         pass
+
+
+def _replay(conn, req_id, digest):
+    row = conn.execute("SELECT digest FROM seen WHERE req_id=?", (req_id,)).fetchone()
+    if row is None:
+        return "new"
+    return "duplicate" if row[0] == digest else "conflict"
+
+
+def _stage_name(req_id):
+    # Both queue readers scan *.json. Keep the staged file out of their view.
+    return "." + req_id + ".route"
+
+
+def _publish(conn, store, req_id, route):
+    target = store.bridge_path(route, req_id + ".json")
+    try:
+        os.replace(store.bridge_path(route, _stage_name(req_id)), target)
+        queued = True
+    except FileNotFoundError:
+        # The stage was synced before COMMIT. If it is gone, the rename
+        # already happened, and a worker may have picked up the file.
+        queued = os.path.isfile(target)
+    store.sync_dir(os.path.dirname(target))
+    conn.execute("UPDATE seen SET route=? WHERE req_id=?", (route, req_id))
+    return queued
+
+
+def _resume(conn, store, req_id, raw, now):
+    row = conn.execute("SELECT route, digest FROM seen WHERE req_id=?", (req_id,)).fetchone()
+    if row is None or row[0] not in (_STAGED + "inbox", _STAGED + "pending"):
+        return None
+    route, digest = row[0][len(_STAGED):], row[1]
+    name = req_id + ".json"
+    with open(store.bridge_path("envelopes", name), "rb") as f:
+        same_request = raw == f.read()
+    with open(store.bridge_path("verdicts", name), encoding="utf-8") as f:
+        res = RouteResult(**json.load(f))
+    queued = _publish(conn, store, req_id, route)
+    if not same_request:
+        return None  # verify the incoming copy before classifying it as a replay
+    if not queued:
+        res = _result("duplicate", req_id, res.agent_id, res.auth, "", res.type)
+    _audit(store, now, res, digest)
+    return res
+
+
+def _deliver(conn, store, policy, res, raw, worker, digest, now):
+    _prune(conn, store, policy, now)
+    req_id = res.req_id
+    name = req_id + ".json"
+    conn.execute("BEGIN IMMEDIATE")
+    if res.route == "pending":
+        count = conn.execute("SELECT COUNT(*) FROM enroll_log WHERE at > ?", (now - 3600,)).fetchone()[0]
+        if count >= policy.enroll_limits["per_hour"]:
+            res = _result("rejected", req_id, res.agent_id, "enroll", "enroll_rate_limited", "enroll",
+                          reply_hint="unsigned_error")
+        else:
+            conn.execute("INSERT OR REPLACE INTO enroll_log(req_id,agent_id,at) VALUES(?,?,?)",
+                         (req_id, res.agent_id, now))
+    _write(store, "rejected" if res.route == "rejected" else "envelopes", name, raw)
+    _write_json(store, "verdicts", name, res._asdict())
+    seen_route = res.route
+    if res.route != "rejected":
+        _write_json(store, res.route, _stage_name(req_id), worker)
+        seen_route = _STAGED + res.route
+    # Persist directory entries too, including those on a newly created bridge.
+    store.sync_dir(store.bridge_home)
+    store.sync_dir(os.path.dirname(os.path.abspath(store.bridge_home)))
+    conn.execute("INSERT INTO seen(req_id,agent_id,digest,first_seen,route) VALUES(?,?,?,?,?)",
+                 (req_id, res.agent_id, digest, now, seen_route))
+    conn.execute("COMMIT")
+    if seen_route.startswith(_STAGED):
+        _publish(conn, store, req_id, res.route)
+    _audit(store, now, res, digest)
+    return res
 
 
 def _result(route, req_id, agent_id="", auth="failed", code="", type_="", decision=None,
@@ -193,41 +228,34 @@ def _audit(store, now, res, digest=""):
 
 def route_request(path, file_req_id, *, store, registry, policy, grants, now):
     raw = _raw(path)
+    agent_id = ""
     try:
-        kind, outer = envelope.read_envelope_file(path, file_req_id, policy.max_envelope_bytes)
-    except AuthError as e:
-        res = _result("rejected", file_req_id, "", "failed", e.code)
-        _write(store, "rejected", file_req_id + ".json", raw)
-        _write_json(store, "verdicts", file_req_id + ".json", res._asdict())
-        _audit(store, now, res)
-        return res
-    except Exception:
-        res = _result("rejected", file_req_id, "", "failed", "internal", alert=True)
-        _write(store, "rejected", file_req_id + ".json", raw)
-        _write_json(store, "verdicts", file_req_id + ".json", res._asdict())
-        try:
-            store.alert(file_req_id, "internal error while reading a request")
-        except Exception:
-            pass
-        _audit(store, now, res)
-        return res
+        # Serialize the replay check, durable staging and publication across
+        # postman invocations without holding a DB write lock during policy checks.
+        with store.lock("inbound"), closing(store.db()) as conn:
+            recovered = _resume(conn, store, file_req_id, raw, now)
+            if recovered is not None:
+                return recovered
+            try:
+                kind, outer = envelope.read_envelope_file(path, file_req_id, policy.max_envelope_bytes)
+            except AuthError as e:
+                res = _result("rejected", file_req_id, "", "failed", e.code)
+                _write(store, "rejected", file_req_id + ".json", raw)
+                _write_json(store, "verdicts", file_req_id + ".json", res._asdict())
+                _audit(store, now, res)
+                return res
 
-    agent_id = outer.get("agent_id") if isinstance(outer.get("agent_id"), str) else ""
-
-    try:
-        if kind == "legacy":
-            return _route_legacy(path, file_req_id, outer, raw, store, registry, policy, grants, now)
-        if kind == "enroll":
-            return _route_enroll(path, file_req_id, outer, raw, store, registry, policy, grants, now)
-        return _route_v3(path, file_req_id, outer, raw, store, registry, policy, grants, now)
+            agent_id = outer.get("agent_id") if isinstance(outer.get("agent_id"), str) else ""
+            if kind == "legacy":
+                return _route_legacy(conn, file_req_id, outer, raw, store, registry, policy, grants, now)
+            if kind == "enroll":
+                return _route_enroll(conn, file_req_id, outer, raw, store, policy, now)
+            return _route_v3(conn, file_req_id, outer, raw, store, registry, policy, grants, now)
     except Exception:
-        # The CLI exits 30 and the postman leaves the PC file for the next
-        # round. Forget the replay row this call may have written, or the
-        # retry would be filed as a "duplicate" and the request silently lost.
-        _forget(store, file_req_id, now)
+        # The CLI exits 30 and the postman retries the PC file. Closing the
+        # connection rolls back uncommitted work. A committed stage and its
+        # verdict must stay intact for _resume().
         res = _result("rejected", file_req_id, agent_id, "failed", "internal", alert=True)
-        _write(store, "rejected", file_req_id + ".json", raw)
-        _write_json(store, "verdicts", file_req_id + ".json", res._asdict())
         try:
             store.alert(file_req_id, "internal error while routing a request")
         except Exception:
@@ -236,7 +264,7 @@ def route_request(path, file_req_id, *, store, registry, policy, grants, now):
         return res
 
 
-def _route_legacy(path, req_id, outer, raw, store, registry, policy, grants, now):
+def _route_legacy(conn, req_id, outer, raw, store, registry, policy, grants, now):
     from_ = outer.get("from")
     label = _legacy_label(from_)
     type_ = _legacy_type(outer.get("type", ""))
@@ -260,7 +288,7 @@ def _route_legacy(path, req_id, outer, raw, store, registry, policy, grants, now
         _audit(store, now, res)
         return res
     digest = hashlib.sha256(raw).hexdigest()
-    rep = _replay(store, policy, req_id, label, digest, now, "inbox")
+    rep = _replay(conn, req_id, digest)
     if rep == "duplicate":
         res = _result("duplicate", req_id, label, "legacy_unsigned", "", type_)
         _audit(store, now, res, digest)
@@ -284,16 +312,10 @@ def _route_legacy(path, req_id, outer, raw, store, registry, policy, grants, now
     worker["auth"] = {"verified": False, "mode": "legacy_unsigned"}
     res = _result("inbox", req_id, label, "legacy_unsigned", "", type_,
                   d.decision, d.reason, d.grant_id)
-    # inbox/ last: a worker that picks the request up must already find the
-    # envelope (the publish pipeline re-verifies it) and the verdict
-    _write(store, "envelopes", req_id + ".json", raw)
-    _write_json(store, "verdicts", req_id + ".json", res._asdict())
-    _write_json(store, "inbox", req_id + ".json", worker)
-    _audit(store, now, res, digest)
-    return res
+    return _deliver(conn, store, policy, res, raw, worker, digest, now)
 
 
-def _route_enroll(path, req_id, outer, raw, store, registry, policy, grants, now):
+def _route_enroll(conn, req_id, outer, raw, store, policy, now):
     try:
         inner = envelope.parse_enroll(outer, now, policy.freshness["max_age_s"],
                                       policy.freshness["max_future_s"])
@@ -306,7 +328,7 @@ def _route_enroll(path, req_id, outer, raw, store, registry, policy, grants, now
         return res
     agent_id = inner["agent_id"]
     digest = hashlib.sha256(raw).hexdigest()
-    rep = _replay(store, policy, req_id, agent_id, digest, now, "pending")
+    rep = _replay(conn, req_id, digest)
     if rep == "duplicate":
         res = _result("duplicate", req_id, agent_id, "enroll", "", "enroll")
         _audit(store, now, res, digest)
@@ -322,33 +344,11 @@ def _route_enroll(path, req_id, outer, raw, store, registry, policy, grants, now
             pass
         _audit(store, now, res, digest)
         return res
-    conn = store.db()
-    try:
-        conn.execute("BEGIN IMMEDIATE")
-        row = conn.execute("SELECT COUNT(*) FROM enroll_log WHERE at > ?", (now - 3600,)).fetchone()
-        count = int(row[0]) if row else 0
-        if count >= int(policy.enroll_limits["per_hour"]):
-            conn.execute("COMMIT")
-            res = _result("rejected", req_id, agent_id, "enroll", "enroll_rate_limited", "enroll",
-                          reply_hint="unsigned_error")
-            _write(store, "rejected", req_id + ".json", raw)
-            _write_json(store, "verdicts", req_id + ".json", res._asdict())
-            _audit(store, now, res, digest)
-            return res
-        conn.execute("INSERT OR REPLACE INTO enroll_log(req_id,agent_id,at) VALUES(?,?,?)",
-                     (req_id, agent_id, now))
-        conn.execute("COMMIT")
-    finally:
-        conn.close()
-    _write_json(store, "pending", req_id + ".json", {"inner": inner, "envelope": outer})
-    _write(store, "envelopes", req_id + ".json", raw)
     res = _result("pending", req_id, agent_id, "enroll", "", "enroll")
-    _write_json(store, "verdicts", req_id + ".json", res._asdict())
-    _audit(store, now, res, digest)
-    return res
+    return _deliver(conn, store, policy, res, raw, {"inner": inner, "envelope": outer}, digest, now)
 
 
-def _route_v3(path, req_id, outer, raw, store, registry, policy, grants, now):
+def _route_v3(conn, req_id, outer, raw, store, registry, policy, grants, now):
     # unauthenticated until verify_request succeeds: inert charset only
     agent_id = _legacy_label(outer.get("agent_id"))
     try:
@@ -379,7 +379,7 @@ def _route_v3(path, req_id, outer, raw, store, registry, policy, grants, now):
         _audit(store, now, res)
         return res
 
-    rep = _replay(store, policy, req_id, vr.agent_id, vr.digest, now, "inbox")
+    rep = _replay(conn, req_id, vr.digest)
     if rep == "duplicate":
         res = _result("duplicate", req_id, vr.agent_id, "verified", "", vr.inner["type"])
         _audit(store, now, res, vr.digest)
@@ -401,10 +401,7 @@ def _route_v3(path, req_id, outer, raw, store, registry, policy, grants, now):
     except AuthError as e:
         res = _result("rejected", req_id, vr.agent_id, "failed", e.code, vr.inner["type"],
                       alert=True, reply_hint="none")
-        _write(store, "rejected", req_id + ".json", raw)
-        _write_json(store, "verdicts", req_id + ".json", res._asdict())
-        _audit(store, now, res, vr.digest)
-        return res
+        return _deliver(conn, store, policy, res, raw, None, vr.digest, now)
     # retired type names become the current one in the worker copy and the
     # verdict; the signed envelope stays byte for byte (reverify needs it)
     type_ = current_type(vr.inner["type"])
@@ -415,11 +412,7 @@ def _route_v3(path, req_id, outer, raw, store, registry, policy, grants, now):
     worker["type"] = type_
     res = _result("inbox", req_id, vr.agent_id, "verified", "", type_,
                   d.decision, d.reason, d.grant_id)
-    _write(store, "envelopes", req_id + ".json", raw)
-    _write_json(store, "verdicts", req_id + ".json", res._asdict())
-    _write_json(store, "inbox", req_id + ".json", worker)     # last, see _route_legacy
-    _audit(store, now, res, vr.digest)
-    return res
+    return _deliver(conn, store, policy, res, raw, worker, vr.digest, now)
 
 
 def reverify(store, registry, policy, req_id, now, worker=None):

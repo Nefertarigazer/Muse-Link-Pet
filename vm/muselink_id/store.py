@@ -190,12 +190,7 @@ class Store:
                 os.fsync(f.fileno())
             os.replace(tmp, path)
             tmp = None
-            if self._posix:
-                dfd = os.open(d, os.O_RDONLY)
-                try:
-                    os.fsync(dfd)
-                finally:
-                    os.close(dfd)
+            self.sync_dir(d)
         finally:
             if tmp is not None:
                 try:
@@ -205,6 +200,14 @@ class Store:
 
     def write_bytes(self, path, data):
         self._atomic_write(path, data)
+
+    def sync_dir(self, path):
+        if self._posix:
+            fd = os.open(path, os.O_RDONLY)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
 
     def _connect(self):
         p = self.path("state.sqlite")

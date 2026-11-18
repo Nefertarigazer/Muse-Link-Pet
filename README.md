@@ -65,7 +65,7 @@ When `Muse`, a local plugin tool, or the experience library needs human confirma
 ### 4. Accessibility-First Executor, Identity v3 & Experience Library
 
 - **Local Executor (`pc/executor-host.py`)**: Loopback-only HTTP listener protected by a random token, request deadlines, user-idle coordination (`user_idle_floor_s`), and a single reentrant input lock. Prefers semantic UI observation (`agent-desktop`) and native UIA before coordinate screenshots (`vm/sem.sh`, `vm/uia.sh`, `vm/seq.sh`, `vm/shot.sh`).
-- **Identity v3 & Grants (`vm/muselink_id/`, `pc/muselink-identity.ps1`)**: Ed25519 request/reply envelopes with separate signature domains, replay protection, enrollment cards, tiered policy (`whitelist` / `ask-first` / `legacy`), and sealed execution grants.
+- **Identity v3 & Grants (`vm/muselink_id/`, `pc/muselink-identity.ps1`)**: HMAC-SHA256 request/reply envelopes with separate authentication domains, replay protection, enrollment cards, tiered policy (`whitelist` / `ask-first` / `legacy`), and sealed execution grants.
 - **Shared MCP Plugin (`pc/plugin/mcp_server.py`)**: Exposes semantic, UIA, batch, screenshot, and experience tools over stdio MCP with per-application user consent and `Muse` input priority.
 - **Experience Library (`pc/explib/`, `library/`)**: Captures drafts from verified execution traces, ranks local and public recipes with CJK-aware matching, and batches 5 verified local entries per consent prompt (`Share` or `Decline (don't ask again)`).
 

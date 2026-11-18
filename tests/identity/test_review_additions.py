@@ -211,7 +211,7 @@ class Routing(Base):
         res = self.env.route(path, rid)
         self.assertEqual((res.code, res.reply_hint), ("id_mismatch", "signed_error"))
 
-    def test_a_crash_after_the_replay_row_does_not_turn_the_retry_into_a_duplicate(self):
+    def test_a_routing_exception_leaves_the_request_retryable(self):
         path, rid = self.env.signed("codex")
         real = envelope.worker_request
         calls = []
@@ -230,6 +230,73 @@ class Routing(Base):
             envelope.worker_request = real
         self.assertEqual((first.route, first.code), ("rejected", "internal"))
         self.assertEqual(second.route, "inbox")
+
+    def interrupt_route(self, path, rid, checkpoint):
+        # A process exit skips Python exception handlers and finally blocks.
+        script = """
+import os
+import sys
+from _support import Env, inbound
+
+tmp, path, rid, checkpoint = sys.argv[1:]
+env = Env(tmp=tmp)
+if checkpoint == "before_commit":
+    write_bytes = env.store.write_bytes
+
+    def interrupt(filename, data):
+        if os.path.basename(os.path.dirname(filename)) == "verdicts":
+            os._exit(81)
+        write_bytes(filename, data)
+
+    env.store.write_bytes = interrupt
+else:
+    publish = inbound._publish
+
+    def interrupt(conn, store, req_id, route):
+        if checkpoint == "before_rename":
+            os._exit(81)
+
+        def take_request(directory):
+            os.unlink(os.path.join(directory, req_id + ".json"))
+            os._exit(81)
+
+        store.sync_dir = take_request
+        publish(conn, store, req_id, route)
+
+    inbound._publish = interrupt
+env.route(path, rid)
+"""
+        p = subprocess.run([sys.executable, "-c", script, self.env.tmp, path, rid, checkpoint],
+                           cwd=os.path.dirname(__file__), capture_output=True, timeout=30)
+        self.assertEqual(p.returncode, 81, p.stderr.decode(errors="replace"))
+
+    def test_interrupted_file_write_does_not_consume_the_request(self):
+        path, rid = self.env.signed("codex")
+        self.interrupt_route(path, rid, "before_commit")
+        self.assertFalse(os.path.exists(self.env.bridge_file("inbox", rid + ".json")))
+        self.assertEqual(self.env.route(path, rid, env=self.env.reopen()).route, "inbox")
+
+    def test_committed_stage_is_delivered_on_retry_even_after_freshness_expires(self):
+        requests = [(self.env.signed("codex"), "inbox", "verified"),
+                    (self.env.legacy("local-worker"), "inbox", "legacy_unsigned"),
+                    (self.env.enroll_request("newbot"), "pending", "enroll")]
+        for (path, rid), queue, auth in requests:
+            with self.subTest(auth=auth):
+                self.interrupt_route(path, rid, "before_rename")
+                target = self.env.bridge_file(queue, rid + ".json")
+                self.assertFalse(os.path.exists(target))
+                reopened = self.env.reopen()
+                late = NOW + reopened.policy.seen_retention_s + 3600
+                res = self.env.route(path, rid, now=late, env=reopened)
+                self.assertEqual((res.route, res.auth), (queue, auth))
+                self.assertTrue(os.path.isfile(target))
+                self.assertEqual(self.env.route(path, rid, env=reopened).route, "duplicate")
+
+    def test_a_worker_can_take_the_request_before_publication_is_recorded(self):
+        path, rid = self.env.signed("codex")
+        self.interrupt_route(path, rid, "after_rename")
+        self.assertEqual(self.env.route(path, rid, env=self.env.reopen()).route, "duplicate")
+        self.assertFalse(os.path.exists(self.env.bridge_file("inbox", rid + ".json")))
 
     def test_envelope_and_verdict_exist_before_the_worker_file(self):
         path, rid = self.env.signed("codex")
